@@ -3,6 +3,7 @@ package net.kafkajava.orderservice.controller;
 import net.kafkajava.base_domains.dto.Order;
 import net.kafkajava.base_domains.dto.OrderEvent;
 import net.kafkajava.orderservice.kafka.OrderProducer;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
