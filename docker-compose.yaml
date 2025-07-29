@@ -1,0 +1,13 @@
+services:
+  # Spring Boot Application
+  kafka_backend:
+    image: kafka_backend:latest
+    container_name: kafka_backend
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "9092:9092"
+    expose:
+      - 9092
