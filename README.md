@@ -106,7 +106,7 @@ cd email-service && ./mvnw spring-boot:run
 Send a POST request to `order-service` to create an order:
 
 ```bash
-curl -X POST http://localhost:8080/api/orders \
+curl -X POST http://localhost:8080/api/v1/orders \
      -H "Content-Type: application/json" \
      -d '{
     "name": "Book order",
