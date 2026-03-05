@@ -37,28 +37,39 @@ Each of these services runs independently and communicates via events using **Ka
 ### Prerequisites
 - **Java 17+**
 - **Maven** (or use the included `mvnw` wrapper)
-- **Apache Kafka** running on `localhost:9092`
+- **Apache Kafka 4.0+** running on `localhost:9092` (KRaft mode — no ZooKeeper needed)
+
+> **Note on `spring-kafka` version:** This project uses Spring Boot `3.5.3`, which bundles `spring-kafka 3.x`. This works with Kafka 4.0 for all basic producer/consumer operations. For full Kafka 4.0 alignment (including KRaft-aware embedded testing), `spring-kafka 4.x` (available via Spring Boot `4.x`) is the officially recommended version.
 
 ---
 
 ### Step 1 — Start Kafka
 
+> **Kafka 4.0+ uses KRaft mode** — ZooKeeper is no longer required or supported.
+
 **Option A: Homebrew (Mac)**
 ```bash
-# Start Zookeeper
-zookeeper-server-start /usr/local/etc/kafka/zookeeper.properties
+# Generate a cluster ID (only needed once)
+KAFKA_CLUSTER_ID="$(kafka-storage.sh random-uuid)"
 
-# In a new terminal, start Kafka
-kafka-server-start /usr/local/etc/kafka/server.properties
+# Format the storage directory
+kafka-storage.sh format -t $KAFKA_CLUSTER_ID -c /usr/local/etc/kafka/kraft/server.properties
+
+# Start Kafka (KRaft mode, no ZooKeeper needed)
+kafka-server-start /usr/local/etc/kafka/kraft/server.properties
 ```
 
 **Option B: Docker**
 ```bash
-docker run -d --name zookeeper -p 2181:2181 zookeeper
 docker run -d --name kafka -p 9092:9092 \
-  -e KAFKA_ZOOKEEPER_CONNECT=host.docker.internal:2181 \
+  -e KAFKA_NODE_ID=1 \
+  -e KAFKA_PROCESS_ROLES=broker,controller \
+  -e KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
   -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
-  apache/kafka
+  -e KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+  -e KAFKA_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
+  -e KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1 \
+  apache/kafka:4.0.0
 ```
 
 ---
