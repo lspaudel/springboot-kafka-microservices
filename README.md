@@ -32,17 +32,67 @@ This project is a simple example that uses a Spring Boot microservices architect
 
 Each of these services runs independently and communicates via events using **Kafka Topics**, allowing for a loosely coupled and scalable architecture.
 
-##  Getting Started
+## Getting Started
 
-It is straightforward: First, clone the project and then navigate into each microservice directory (`order-service`, `stock-service` and `email-service`) to start the Spring Boot application (IntelliJ IDE is preferred). After that, start Kafka and run each services.
+### Prerequisites
+- **Java 17+**
+- **Maven** (or use the included `mvnw` wrapper)
+- **Apache Kafka** running on `localhost:9092`
 
-# Testing the Flow
+---
 
-Send a POST request to `order-service` to create an order.
+### Step 1 — Start Kafka
 
-Observe logs in `stock-service` and `email-service` to verify they received and processed the event. 
+**Option A: Homebrew (Mac)**
+```bash
+# Start Zookeeper
+zookeeper-server-start /usr/local/etc/kafka/zookeeper.properties
 
-For example: use a tool like **Postman** or **cURL** to create an order:
+# In a new terminal, start Kafka
+kafka-server-start /usr/local/etc/kafka/server.properties
+```
+
+**Option B: Docker**
+```bash
+docker run -d --name zookeeper -p 2181:2181 zookeeper
+docker run -d --name kafka -p 9092:9092 \
+  -e KAFKA_ZOOKEEPER_CONNECT=host.docker.internal:2181 \
+  -e KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  apache/kafka
+```
+
+---
+
+### Step 2 — Build the Shared Module
+
+The services depend on `base-domains`, so install it first:
+```bash
+cd base-domains
+./mvnw clean install -DskipTests
+```
+
+---
+
+### Step 3 — Run Each Service
+
+Open **three separate terminals**:
+
+```bash
+# Terminal 1 — Order Service (port 8080)
+cd order-service && ./mvnw spring-boot:run
+
+# Terminal 2 — Stock Service (port 8081)
+cd stock-service && ./mvnw spring-boot:run
+
+# Terminal 3 — Email Service (port 8082)
+cd email-service && ./mvnw spring-boot:run
+```
+
+---
+
+## Testing the Flow
+
+Send a POST request to `order-service` to create an order:
 
 ```bash
 curl -X POST http://localhost:8080/api/orders \
@@ -53,6 +103,7 @@ curl -X POST http://localhost:8080/api/orders \
     "price": 18000
     }'
 ```
+
 Check the terminal logs for:  
 `stock-service` – should receive the event  
 `email-service` – should receive the event
