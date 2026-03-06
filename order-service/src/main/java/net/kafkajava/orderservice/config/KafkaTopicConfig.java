@@ -1,4 +1,5 @@
 package net.kafkajava.orderservice.config;
+
 import org.apache.kafka.clients.admin.NewTopic;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -10,11 +11,11 @@ public class KafkaTopicConfig {
     @Value("${spring.kafka.topic.name}")
     private String topicName;
 
-    //spring bean for kafka topic
+    // spring bean for kafka topic
     @Bean
-    public NewTopic topic(){
+    public NewTopic topic() {
         return TopicBuilder.name(topicName)
-//                .partitions(3)
+                .partitions(3)
                 .build();
     }
 
