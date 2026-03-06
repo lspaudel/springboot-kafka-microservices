@@ -103,21 +103,110 @@ cd email-service && ./mvnw spring-boot:run
 
 ## Testing the Flow
 
-Send a POST request to `order-service` to create an order:
+### ✅ Happy Path — Place a Valid Order
 
 ```bash
-curl -X POST http://localhost:8080/api/v1/orders \
-     -H "Content-Type: application/json" \
-     -d '{
-    "name": "Book order",
-    "qty": 50,
-    "price": 18000
-    }'
+curl -s -X POST http://localhost:8080/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Book order", "qty": 50, "price": 18000}' | jq
+```
+
+Expected response:
+```json
+{
+  "success": true,
+  "message": "Order placed successfully",
+  "data": "Order ID: <uuid>",
+  "timestamp": "..."
+}
 ```
 
 Check the terminal logs for:  
-`stock-service` – should receive the event  
-`email-service` – should receive the event
+`stock-service` – should log `Order event received`  
+`email-service` – should log `Order event received`
+
+---
+
+### ❌ Input Validation — Send an Invalid Payload
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -d '{"name": "", "qty": -1, "price": -100}' | jq
+```
+
+Expected `400 Bad Request`:
+```json
+{
+  "success": false,
+  "message": "Validation failed",
+  "data": {
+    "name": "Order name must not be blank",
+    "qty": "Quantity must be at least 1",
+    "price": "Price must be a positive value"
+  }
+}
+```
+
+---
+
+### 🔁 Idempotency — Duplicate Event Protection
+
+Send the same `orderId` twice — the second should be silently ignored by both consumers:
+
+```bash
+curl -s -X POST http://localhost:8080/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": "test-123", "name": "Duplicate Test", "qty": 1, "price": 100}'
+
+# Send again immediately
+curl -s -X POST http://localhost:8080/api/v1/orders \
+  -H "Content-Type: application/json" \
+  -d '{"orderId": "test-123", "name": "Duplicate Test", "qty": 1, "price": 100}'
+```
+
+On the second event, both consumer logs should show:
+```
+WARN [stock-service] Duplicate event ignored for orderId: test-123
+WARN [email-service] Duplicate event ignored for orderId: test-123
+```
+
+---
+
+### 💀 Dead Letter Queue (DLQ) — Simulate a Consumer Failure
+
+1. Temporarily add `throw new RuntimeException("Simulated failure");` at the top of `stock-service`'s `consume()` method.
+2. Restart `stock-service` and send a valid order.
+3. Watch the logs — you'll see **3 retry attempts** (1 second apart), then the event is forwarded to the DLT topic.
+4. Verify the dead-lettered event:
+
+```bash
+kafka-console-consumer.sh \
+  --bootstrap-server localhost:9092 \
+  --topic order_topics.DLT \
+  --from-beginning
+```
+
+5. Remove the `throw` and restart the service to restore normal operation.
+
+---
+
+### 📦 Verify Kafka Topic Partitions
+
+After the first startup, confirm `order_topics` was created with 3 partitions:
+
+```bash
+kafka-topics.sh --describe \
+  --bootstrap-server localhost:9092 \
+  --topic order_topics
+```
+
+Expected output should show `PartitionCount: 3`.
+
+---
+
+> **Tip:** Install [`jq`](https://jqlang.github.io/jq/) (`brew install jq`) for pretty-printed JSON in curl responses.
+
 
 
 
